@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Bot.ChuckNorris.BusinessServices;
+using System.Threading;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
+using Bot.ChuckNorris.BusinessServices;
 
 namespace Bot.ChuckNorris.Dialogs
 {
@@ -30,7 +31,10 @@ namespace Bot.ChuckNorris.Dialogs
             if (!message.Text.ToLower().StartsWith("chuck"))
                 return;
 
-            var returnMessage = string.Empty;
+            //Simulate Bot Typing
+            await AddTypingActivityAsync((Activity)message);
+
+            string returnMessage;
             if (message.Text.ToLower().Equals("chuck ping"))
             {
                 returnMessage = "pong";
@@ -38,10 +42,24 @@ namespace Bot.ChuckNorris.Dialogs
             else
             {
                 returnMessage = _chuckNorrisService.FindBestFact(message.Text);
-
             }
 
             await context.PostAsync(returnMessage);
+        }
+
+        private async Task AddTypingActivityAsync(Activity activity)
+        {
+            var connector = new ConnectorClient(new Uri(activity.ServiceUrl));
+            var isTypingReply = activity.CreateReply();
+            isTypingReply.Type = ActivityTypes.Typing;
+            isTypingReply.Text = null;
+
+            await connector.Conversations.ReplyToActivityAsync(isTypingReply, CancellationToken.None);
+
+            var rnd = new Random();
+            var waitMilliSeconds = rnd.Next(600, 1600);
+
+            await System.Threading.Tasks.Task.Delay(waitMilliSeconds, CancellationToken.None);
         }
     }
 }
