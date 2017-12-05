@@ -5,9 +5,15 @@ using System.Reflection;
 using System.Web;
 using System.Web.Http;
 using System.Web.Routing;
+using System.Configuration;
 using Autofac;
 using Autofac.Integration.WebApi;
+using Bot.ChuckNorris.BusinessServices;
+using Bot.ChuckNorris.DataAccess;
+using Bot.ChuckNorris.Dialogs;
+using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Dialogs.Internals;
+using Microsoft.Bot.Builder.Internals.Fibers;
 
 namespace Bot.ChuckNorris
 {
@@ -15,23 +21,22 @@ namespace Bot.ChuckNorris
     {
         protected void Application_Start()
         {
-            var builder = new ContainerBuilder();
+            Conversation.UpdateContainer(builder =>
+            {
+                builder.RegisterType<RootDialog>()
+                    .As<IDialog<object>>().InstancePerDependency();
 
-            //register the bot builder module
-            builder.RegisterModule(new DialogModule());
+                builder.RegisterType<ChuckNorrisService>()
+                    .Keyed<IChuckNorrisService>(FiberModule.Key_DoNotSerialize)
+                    .AsImplementedInterfaces()
+                    .SingleInstance();
 
-            //register project dependencies
-            builder.RegisterModule(new CustomModules());
-
-            //Http config 
-            var config = GlobalConfiguration.Configuration;
-
-            //register controller
-            builder.RegisterApiControllers(Assembly.GetExecutingAssembly());
-
-            //create container
-            var container = builder.Build();
-            config.DependencyResolver = new AutofacWebApiDependencyResolver(container);
+                builder.RegisterType<ChuckNorrisRepository>()
+                    .Keyed<IChuckNorrisRepository>(FiberModule.Key_DoNotSerialize)
+                    .AsImplementedInterfaces()
+                    .SingleInstance()
+                    .WithParameter(new TypedParameter(typeof(string), ConfigurationManager.AppSettings["jsonPath"]));
+            });
 
             GlobalConfiguration.Configure(WebApiConfig.Register);
         }

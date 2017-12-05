@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Autofac;
+using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Dialogs.Internals;
 using Microsoft.Bot.Connector;
 
@@ -12,22 +13,14 @@ namespace Bot.ChuckNorris.Controllers
     [BotAuthentication]
     public class MessagesController : ApiController
     {
-        private readonly ILifetimeScope _scope;
-
-        public MessagesController(ILifetimeScope scope)
-        {
-            _scope = scope;
-        }
-
         [HttpPost]
         public async Task<HttpResponseMessage> Post([FromBody]Activity activity, CancellationToken token)
         {
             if (activity.Type == ActivityTypes.Message)
             {
-                using (var scope = DialogModule.BeginLifetimeScope(_scope, activity))
+                using (var scope = DialogModule.BeginLifetimeScope(Conversation.Container, activity))
                 {
-                    var postToBot = scope.Resolve<IPostToBot>();
-                    await postToBot.PostAsync(activity, token);
+                    await Conversation.SendAsync(activity, () => scope.Resolve<IDialog<object>>(), token);
                 }
             }
             else
